@@ -100,10 +100,10 @@ async function injectNetworkInspector(tab) {
 
 ;(async () => {
 	try {
-		const tab = await nick.newTab()
-		var downloadMore = false;
 		var needAcceptCookies = true;
 		do {
+			const tab = await nick.newTab()
+			var downloadMore = false;
 			await tab.open(url)
 			if (needAcceptCookies) {
 				await acceptCookies(tab);
@@ -127,6 +127,9 @@ async function injectNetworkInspector(tab) {
 				const filename = `${requiredVideos[0]}.mp4`;
 				await makeSynchronousRequest(filename, videoUrl);
 				downloadMore = requiredVideos.length > 1;
+
+				// Close tab
+				await tab.close();
 			}
 		} while (downloadMore);
 	} catch(err) {
