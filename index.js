@@ -2,6 +2,7 @@ const fs = require('fs');
 const Nick = require('nickjs');
 const nick = new Nick();
 const https = require('https');
+const cliProgress = require('cli-progress');
 
 const url = "https://www.ccma.cat/tv3/super3/germans-kratt/videos/";
 
@@ -12,10 +13,19 @@ function getPromise(filename, urlValue) {
 	return new Promise((resolve, reject) => {
 		const file = fs.createWriteStream(filename);
 		https.get(urlValue, (response) => {
+			const progressBar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
+			let contentLength = response.headers['content-length'];
+			progressBar.start(contentLength, 0);
 			response.pipe(file);
+			let size = 0;	
+			response.on('data', (chunk) => {
+				size += chunk.length;
+				progressBar.update(size);
+			});
 			response.on('end', () => {
 				resolve(true);
-			});	
+				progressBar.stop();
+			});
 		});
 	});
 }
