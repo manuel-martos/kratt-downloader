@@ -50,7 +50,7 @@ async function obtainCurrentVideos(tab) {
 				if (textElements !== undefined && textElements.length === 1) {
 					const title = textElements[0].getElementsByTagName('h2');
 					if (title !== undefined && title.length === 1) {
-						data.push(title[0].innerText);
+						data.push(title[0].innerText.replace('!', ''));
 					}
 				}
 			}
