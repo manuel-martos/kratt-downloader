@@ -86,10 +86,11 @@ async function obtainCurrentVideos(tab) {
 function checkRequiredVideos(currentVideos) {
 	console.log(`Check which videos should be downloaded...`);
 	const requiredVideos = [];
-	for (title of currentVideos) {
+	for (idx in currentVideos) {
+		const title = currentVideos[idx];
 		const path = `./${title}.mp4`;
 		if (!fs.existsSync(path)) {
-			requiredVideos.push(title);
+			requiredVideos.push({title: title, index: idx});
 		}
 	}
 	return requiredVideos;
@@ -139,16 +140,16 @@ async function injectNetworkInspector(tab) {
 				await injectNetworkInspector(tab);
 
 				// Navigate to first video
-				console.log(`Navigate to "${requiredVideos[0]}" video...`);
+				console.log(`Navigate to "${requiredVideos[0].title}" video...`);
 				await tab.evaluate((args, callback) => {
-					document.getElementsByClassName('media-object')[0].click();
+					document.getElementsByClassName('media-object')[args.index].click();
 					callback(null, true);
-				})
+				}, requiredVideos[0]);
 				await tab.waitUntilVisible('#view19 > div.jw-wrapper.jw-reset > div.jw-controls.jw-reset > div.jw-display.jw-reset > div > div > div.jw-display-icon-container.jw-display-icon-display.jw-reset > div', 20000);
 	
 				// Download file
-				console.log(`Download "${requiredVideos[0]}" file...`);
-				const filename = `${requiredVideos[0]}.mp4`;
+				console.log(`Download "${requiredVideos[0].title}" (${videoUrl}) file...`);
+				const filename = `${requiredVideos[0].title}.mp4`;
 				await makeSynchronousRequest(filename, videoUrl);
 				downloadMore = requiredVideos.length > 1;
 
