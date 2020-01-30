@@ -25,7 +25,21 @@ function getPromise(filename, urlValue) {
 			response.on('end', () => {
 				resolve(true);
 				progressBar.stop();
+				process.on('SIGINT', null);
+				process.on('SIGUSR1', null);
+				process.on('SIGUSR2', null);
+				process.on('uncaughtException', null);
 			});
+
+			let cleanProgress = () => {
+				progressBar.stop();
+				process.exit();
+			}
+
+			process.on('SIGINT', cleanProgress);
+			process.on('SIGUSR1', cleanProgress);
+			process.on('SIGUSR2', cleanProgress);
+			process.on('uncaughtException', cleanProgress);
 		});
 	});
 }
