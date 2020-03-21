@@ -1,6 +1,7 @@
+require('dotenv').config({ path: './.env'});
 const fs = require('fs');
 const Nick = require('nickjs');
-const nick = new Nick();
+const nick = new Nick({headless:true, timeout:60000});
 const https = require('https');
 const cliProgress = require('cli-progress');
 
@@ -57,9 +58,13 @@ async function makeSynchronousRequest(filename, urlValue) {
 }
 
 async function acceptCookies(tab) {
-	console.log("Try to accept cookies...");
-	await tab.waitUntilVisible('.qc-cmp-button:nth-child(2)');
-	await tab.click('.qc-cmp-button:nth-child(2)');
+	try {
+		console.log("Try to accept cookies...");
+		await tab.waitUntilVisible('.qc-cmp-button:nth-child(2)');
+		await tab.click('.qc-cmp-button:nth-child(2)');
+	} catch (err) {
+
+	}
 }
 
 async function obtainCurrentVideos(tab) {
@@ -74,7 +79,7 @@ async function obtainCurrentVideos(tab) {
 				if (textElements !== undefined && textElements.length === 1) {
 					const title = textElements[0].getElementsByTagName('h2');
 					if (title !== undefined && title.length === 1) {
-						data.push(title[0].innerText.replace('!', ''));
+						data.push(title[0].innerText.replace('!', '').replace('?', ''));
 					}
 				}
 			}
@@ -123,6 +128,27 @@ async function injectNetworkInspector(tab) {
 	});
 }
 
+async function moveToNextPage(tab) {
+	const result = await tab.evaluate((args, callback) => {
+		const nextDisabled = document.getElementsByClassName('R-seg inactiu');
+		if (nextDisabled !== undefined && typeof nextDisabled === "object" && nextDisabled.length === 1) {
+			callback(null, false);
+		} else {
+			const nextActive = document.getElementsByClassName('R-seg');
+			if (nextActive !== undefined && typeof nextActive === "object" && nextActive.length === 1) {
+				callback(null, true);
+			} else {
+				callback(null, false);
+			}
+		}
+	});
+	if (result) {
+		await tab.click('#pg1 > div > ul > li.R-seg > a');
+		await tab.wait(5000);
+	}
+	return result;
+}
+
 ;(async () => {
 	try {
 		var needAcceptCookies = true;
@@ -134,28 +160,31 @@ async function injectNetworkInspector(tab) {
 				await acceptCookies(tab);
 				needAcceptCookies = false;
 			}
-			const currentVideos = await obtainCurrentVideos(tab);
-			const requiredVideos = checkRequiredVideos(currentVideos);
-			if (requiredVideos.length > 0) {
-				await injectNetworkInspector(tab);
-
-				// Navigate to first video
-				console.log(`Navigate to "${requiredVideos[0].title}" video...`);
-				await tab.evaluate((args, callback) => {
-					document.getElementsByClassName('media-object')[args.index].click();
-					callback(null, true);
-				}, requiredVideos[0]);
-				await tab.waitUntilVisible('#view19 > div.jw-wrapper.jw-reset > div.jw-controls.jw-reset > div.jw-display.jw-reset > div > div > div.jw-display-icon-container.jw-display-icon-display.jw-reset > div', 20000);
+			var nextPage = false;
+			do {
+				const currentVideos = await obtainCurrentVideos(tab);
+				const requiredVideos = checkRequiredVideos(currentVideos);
+				if (requiredVideos.length > 0) {
+					await injectNetworkInspector(tab);
 	
-				// Download file
-				console.log(`Download "${requiredVideos[0].title}" (${videoUrl}) file...`);
-				const filename = `${requiredVideos[0].title}.mp4`;
-				await makeSynchronousRequest(filename, videoUrl);
-				downloadMore = requiredVideos.length > 1;
+					// Navigate to first video
+					console.log(`Navigate to "${requiredVideos[0].title}" video...`);
+					await tab.evaluate((args, callback) => {
+						document.getElementsByClassName('media-object')[args.index].click();
+						callback(null, true);
+					}, requiredVideos[0]);
+					await tab.waitUntilVisible('#view19 > div.jw-wrapper.jw-reset > div.jw-controls.jw-reset > div.jw-display.jw-reset > div > div > div.jw-display-icon-container.jw-display-icon-display.jw-reset > div', 20000);
+		
+					// Download file
+					console.log(`Download "${requiredVideos[0].title}" (${videoUrl}) file...`);
+					const filename = `${requiredVideos[0].title}.mp4`;
+					await makeSynchronousRequest(filename, videoUrl);
+					downloadMore = requiredVideos.length > 1;
+				}
+			} while (await moveToNextPage(tab));
 
-				// Close tab
-				await tab.close();
-			}
+			// Close tab
+			await tab.close();
 		} while (downloadMore);
 	} catch(err) {
 		console.log("Could not open page:", err)
