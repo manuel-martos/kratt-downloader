@@ -178,7 +178,7 @@ async function moveToNextPage(page) {
 					// Download file
 					console.log(`Download "${currentVideo.title}" (${videoUrl}) file...`);
 					const filename = `${currentVideo.title}.mp4`;
-					await makeSynchronousRequest(filename, currentVideo.url /* videoUrl */);
+					await makeSynchronousRequest(filename, videoUrl);
 					await videoPage.close();
 				}
 			} while (await moveToNextPage(page));
